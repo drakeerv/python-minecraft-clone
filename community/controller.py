@@ -1,6 +1,6 @@
 import random
 import player
-import chunk
+import superchunk as chunk
 import hit
 
 from enum import IntEnum

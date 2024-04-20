@@ -1,12 +1,14 @@
 from util import *
 import glm
-from functools import lru_cache as cache
+from functools import lru_cache
+import block_type
 
 SUBCHUNK_WIDTH  = 4
 SUBCHUNK_HEIGHT = 4
 SUBCHUNK_LENGTH = 4
+SUBCHUNK_SIZE = glm.ivec3(SUBCHUNK_WIDTH, SUBCHUNK_HEIGHT, SUBCHUNK_LENGTH)
 
-@cache(maxsize=None)
+@lru_cache(maxsize=None)
 def smooth(a, b, c, d):
 	if not a or not b or not c or not d:
 		l = (a, *(i for i in (b, c, d) if i))
@@ -17,28 +19,21 @@ def smooth(a, b, c, d):
 		d = max(d, min_val)
 	return (a + b + c + d) / 4
 
-@cache(maxsize=None)
+@lru_cache(maxsize=None)
 def ao(s1, s2, c):
 	if s1 and s2:
 		return 0.25
 	return 1 - (s1 + s2 + c) / 4
 
 class Subchunk:
-	def __init__(self, parent, subchunk_position):
+	def __init__(self, parent, subchunk_position: glm.ivec3):
 		self.parent = parent
 		self.world = self.parent.world
 
 		self.subchunk_position = subchunk_position
-
-		self.local_position = (
-			self.subchunk_position[0] * SUBCHUNK_WIDTH,
-			self.subchunk_position[1] * SUBCHUNK_HEIGHT,
-			self.subchunk_position[2] * SUBCHUNK_LENGTH)
-
-		self.position = (
-			self.parent.position[0] + self.local_position[0],
-			self.parent.position[1] + self.local_position[1],
-			self.parent.position[2] + self.local_position[2])
+		self.local_position = self.subchunk_position * SUBCHUNK_SIZE
+		self.position = self.parent.position + self.local_position
+		
 
 		# mesh variables
 
@@ -48,14 +43,14 @@ class Subchunk:
 		self.translucent_mesh = []
 		self.translucent_mesh_array = None
 
-	def get_raw_light(self, pos, npos):
+	def get_raw_light(self, pos: glm.ivec3, npos: glm.ivec3) -> list[int]:
 		if not npos:
 			light_levels = self.world.get_light(pos)
 		else:
 			light_levels = self.world.get_light(npos)
 		return [light_levels] * 4
 
-	def get_raw_skylight(self, pos, npos):
+	def get_raw_skylight(self, pos: glm.ivec3, npos: glm.ivec3) -> list[int]:
 		if not npos:
 			light_levels = self.world.get_skylight(pos)
 		else:
@@ -80,7 +75,7 @@ class Subchunk:
 		vertex4 = smooth(light, light2, light5, light3)
 		return (vertex1, vertex2, vertex3, vertex4)
 
-	def get_neighbour_voxels(self, npos, face):
+	def get_neighbour_voxels(self, npos: glm.ivec3, face: int) -> list[glm.ivec3]:
 		if not face: # EAST
 			neighbours = [
 				npos + UP + SOUTH, npos + UP, npos + UP + NORTH,
@@ -123,7 +118,7 @@ class Subchunk:
 
 
 
-	def get_light_smooth(self, block, face, pos, npos):
+	def get_light_smooth(self, block: int, face: int, pos: glm.ivec3, npos: glm.ivec3):
 		if not npos or block in self.world.light_blocks:
 			return [self.world.get_light(pos)] * 4
 
@@ -133,7 +128,7 @@ class Subchunk:
 
 		return self.get_smooth_face_light(self.world.get_light(npos), *nlights)
 
-	def get_skylight_smooth(self, block, face, pos, npos):
+	def get_skylight_smooth(self, block: int, face: int, pos: glm.ivec3, npos: glm.ivec3):
 		if not npos or block in self.world.light_blocks:
 			return [self.world.get_skylight(pos)] * 4
 
@@ -143,7 +138,7 @@ class Subchunk:
 
 		return self.get_smooth_face_light(self.world.get_skylight(npos), *nlights)
 
-	def get_ambient(self, block, block_type, face, npos):
+	def get_ambient(self, block: int, block_type: block_type.Block_type, face: int, npos: glm.ivec3):
 		raw_shading = block_type.shading_values[face]
 		if not block_type.is_cube or block in self.world.light_blocks:
 			return raw_shading
@@ -156,17 +151,17 @@ class Subchunk:
 		
 		return [a * b for a, b in zip(face_ao, raw_shading)]
 
-	def get_shading(self, block, block_type, face, npos):
+	def get_shading(self, block: int, block_type: block_type.Block_type, face: int, npos: glm.ivec3):
 		return self.get_ambient(block, block_type, face, npos) if self.world.options.SMOOTH_LIGHTING else block_type.shading_values[face]
 
-	def get_light(self, block, face, pos, npos):
+	def get_light(self, block: int, face: int, pos: glm.ivec3, npos: glm.ivec3):
 		return self.get_light_smooth(block, face, pos, npos) if self.world.options.SMOOTH_LIGHTING else self.get_raw_light(pos, npos)
 
-	def get_skylight(self, block, face, pos, npos):
+	def get_skylight(self, block: int, face: int, pos: glm.ivec3, npos: glm.ivec3):
 		return self.get_skylight_smooth(block, face, pos, npos) if self.world.options.SMOOTH_LIGHTING else self.get_raw_skylight(pos, npos)
 
 
-	def add_face(self, face, pos, lpos, block, block_type, npos=None):
+	def add_face(self, face: int, pos: glm.ivec3, lpos: glm.vec3, block: int, block_type: block_type.Block_type, npos: glm.ivec3 = None):
 		lx, ly, lz = lpos
 		vertex_positions = block_type.vertex_positions[face]
 		tex_index = block_type.tex_indices[face]
@@ -189,7 +184,7 @@ class Subchunk:
 					 skylights[i]]
 					 
 
-	def can_render_face(self, block_type, block_number, position):
+	def can_render_face(self, block_type: block_type.Block_type, block_number: int, position: glm.ivec3):
 		return not (self.world.is_opaque_block(position)
 			or (block_type.glass and self.world.get_block_number(position) == block_number))
 			
@@ -212,7 +207,7 @@ class Subchunk:
 					if block_number:
 						block_type = self.world.block_types[block_number]
 
-						x, y, z = pos = glm.ivec3(
+						pos = glm.ivec3(
 							self.position[0] + local_x,
 							self.position[1] + local_y,
 							self.position[2] + local_z)

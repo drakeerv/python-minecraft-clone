@@ -1,15 +1,27 @@
 import ctypes
 from collections import deque
+from functools import lru_cache
 
 import pyglet.gl as gl
 
-import subchunk 
+import subchunk
+import glm
 
 import options
 
 CHUNK_WIDTH = 16
 CHUNK_HEIGHT = 128
 CHUNK_LENGTH = 16
+CHUNK_SIZE = glm.ivec3(CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_LENGTH)
+
+@lru_cache(maxsize=None)
+def get_chunk_position(position: glm.ivec3) -> glm.ivec3:
+	return glm.ivec3(position) // CHUNK_SIZE
+
+
+@lru_cache(maxsize=None)
+def get_local_position(position: glm.ivec3) -> glm.ivec3:
+	return glm.ivec3(position) % CHUNK_SIZE
 
 class Chunk:
 	def __init__(self, world, chunk_position):
@@ -32,13 +44,14 @@ class Chunk:
 							for y in range(CHUNK_HEIGHT)]
 							for x in range(CHUNK_WIDTH)]
 		
-		self.subchunks = {}
+		self.subchunks: dict[glm.ivec3, subchunk.Subchunk] = {}
 		self.chunk_update_queue = deque()
 		
 		for x in range(int(CHUNK_WIDTH / subchunk.SUBCHUNK_WIDTH)):
 			for y in range(int(CHUNK_HEIGHT / subchunk.SUBCHUNK_HEIGHT)):
 				for z in range(int(CHUNK_LENGTH / subchunk.SUBCHUNK_LENGTH)):
-					self.subchunks[(x, y, z)] = subchunk.Subchunk(self, (x, y, z))
+					position = glm.ivec3(x, y, z)
+					self.subchunks[position] = subchunk.Subchunk(self, position)
 
 		# mesh variables
 
@@ -101,33 +114,33 @@ class Chunk:
 		gl.glDeleteBuffers(1, self.vbo)
 		gl.glDeleteVertexArrays(1, self.vao)
 
-	def get_block_light(self, position):
+	def get_block_light(self, position: glm.ivec3) -> int:
 		x, y, z = position
 		return self.lightmap[x][y][z] & 0xF
 
-	def set_block_light(self, position, value):
+	def set_block_light(self, position: glm.ivec3, value: int):
 		x, y, z = position
 		self.lightmap[x][y][z] = (self.lightmap[x][y][z] & 0xF0) | value
 
-	def get_sky_light(self, position):
+	def get_sky_light(self, position: glm.ivec3) -> int:
 		x, y, z = position
 		return (self.lightmap[x][y][z] >> 4) & 0xF
 
-	def set_sky_light(self, position, value):
+	def set_sky_light(self, position: glm.ivec3, value: int):
 		x, y, z = position
 		self.lightmap[x][y][z] = (self.lightmap[x][y][z] & 0xF) | (value << 4)
 
-	def get_raw_light(self, position):
+	def get_raw_light(self, position: glm.ivec3) -> int:
 		x, y, z = position
 		return self.lightmap[x][y][z]
 
-	def get_block_number(self, position):
+	def get_block_number(self, position: glm.ivec3) -> int:
 		lx, ly, lz = position
 
 		block_number = self.blocks[lx][ly][lz]
 		return block_number
 
-	def get_transparency(self, position):
+	def get_transparency(self, position: glm.ivec3) -> int:
 		block_type = self.world.block_types[self.get_block_number(position)]
 
 		if not block_type:
@@ -135,7 +148,7 @@ class Chunk:
 		
 		return block_type.transparent
 
-	def is_opaque_block(self, position):
+	def is_opaque_block(self, position: glm.ivec3) -> bool:
 		# get block type and check if it's opaque or not
 		# air counts as a transparent block, so test for that too
 		
@@ -151,27 +164,23 @@ class Chunk:
 		for subchunk in self.subchunks.values():
 			self.chunk_update_queue.append(subchunk)
 
-	def update_at_position(self, position):
-		x, y, z = position
+	def update_at_position(self, position: glm.vec3):
+		# l = get_local_subchunk_position(position)
+		# s = get_subchunk_position(get_local_position(position))
+  
+		l = position % subchunk.SUBCHUNK_SIZE
+		s = get_local_position(position) // subchunk.SUBCHUNK_SIZE
 
-		lx = int(x % subchunk.SUBCHUNK_WIDTH )
-		ly = int(y % subchunk.SUBCHUNK_HEIGHT)
-		lz = int(z % subchunk.SUBCHUNK_LENGTH)
-
-		clx, cly, clz = self.world.get_local_position(position)
-
-		sx = clx // subchunk.SUBCHUNK_WIDTH
-		sy = cly // subchunk.SUBCHUNK_HEIGHT
-		sz = clz // subchunk.SUBCHUNK_LENGTH
-
-		if self.subchunks[(sx, sy, sz)] not in self.chunk_update_queue:
-			self.chunk_update_queue.append(self.subchunks[(sx, sy, sz)])
+		if self.subchunks[s] not in self.chunk_update_queue:
+			self.chunk_update_queue.append(self.subchunks[s])
 
 		def try_update_subchunk_mesh(subchunk_position):
 			if subchunk_position in self.subchunks:
 				if not self.subchunks[subchunk_position] in self.chunk_update_queue:
 					self.chunk_update_queue.append(self.subchunks[subchunk_position])
 
+		sx, sy, sz = s
+		lx, ly, lz = l
 		if lx == subchunk.SUBCHUNK_WIDTH - 1: try_update_subchunk_mesh((sx + 1, sy, sz))
 		if lx == 0: try_update_subchunk_mesh((sx - 1, sy, sz))
 
@@ -182,7 +191,7 @@ class Chunk:
 		if lz == 0: try_update_subchunk_mesh((sx, sy, sz - 1))
 
 	def process_chunk_updates(self):
-		for i in range(self.world.options.CHUNK_UPDATES):
+		for _ in range(self.world.options.CHUNK_UPDATES):
 			if self.chunk_update_queue:
 				subchunk = self.chunk_update_queue.popleft()
 				subchunk.update_mesh()
@@ -251,7 +260,7 @@ class Chunk:
 			(gl.GLuint * len(self.draw_commands)) (*self.draw_commands)
 		)
 
-	def draw_direct(self, mode):
+	def draw_direct(self, mode: gl.GLenum):
 		if not self.mesh_quad_count:
 			return
 		gl.glBindVertexArray(self.vao)
@@ -263,7 +272,7 @@ class Chunk:
 			None,
 		)
 
-	def draw_indirect(self, mode):
+	def draw_indirect(self, mode: gl.GLenum):
 		if not self.mesh_quad_count:
 			return
 
@@ -277,7 +286,7 @@ class Chunk:
 			None,
 		)
 
-	def draw_direct_advanced(self, mode):
+	def draw_direct_advanced(self, mode: gl.GLenum):
 		if not self.mesh_quad_count:
 			return
 
@@ -303,7 +312,7 @@ class Chunk:
 		)
 		gl.glEndConditionalRender()
 
-	def draw_indirect_advanced(self, mode):
+	def draw_indirect_advanced(self, mode: gl.GLenum):
 		if not self.mesh_quad_count:
 			return
 
@@ -332,7 +341,7 @@ class Chunk:
 	draw_advanced = draw_indirect_advanced if options.INDIRECT_RENDERING else draw_direct_advanced
 	draw = draw_advanced if options.ADVANCED_OPENGL else draw_normal
 
-	def draw_translucent_direct(self, mode):
+	def draw_translucent_direct(self, mode: gl.GLenum):
 		if not self.mesh_quad_count:
 			return
 		
@@ -347,7 +356,7 @@ class Chunk:
 			self.mesh_quad_count * 4
 		)
 
-	def draw_translucent_indirect(self, mode):
+	def draw_translucent_indirect(self, mode: gl.GLenum):
 		if not self.translucent_quad_count:
 			return
 		

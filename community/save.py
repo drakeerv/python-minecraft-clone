@@ -2,7 +2,7 @@ import nbtlib as nbt
 import base36
 import logging
 
-import chunk
+import superchunk as chunk
 import glm
 
 class Save:

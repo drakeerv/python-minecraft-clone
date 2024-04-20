@@ -1,10 +1,10 @@
-import chunk
-import subchunk
+import superchunk as chunk
 import ctypes
 import math
 import logging
 import glm
 import options
+import collider
 
 from functools import cmp_to_key
 from collections import deque
@@ -16,31 +16,13 @@ import models
 import save
 from util import DIRECTIONS
 
-def get_chunk_position(position):
-	x, y, z = position
-
-	return glm.ivec3(
-		(x // chunk.CHUNK_WIDTH),
-		(y // chunk.CHUNK_HEIGHT),
-		(z // chunk.CHUNK_LENGTH))
-
-
-def get_local_position(position):
-	x, y, z = position
-	
-	return glm.ivec3(
-		int(x % chunk.CHUNK_WIDTH),
-		int(y % chunk.CHUNK_HEIGHT),
-		int(z % chunk.CHUNK_LENGTH))
-
-
 class World:
 	def __init__(self, shader, player, texture_manager, options):
 		self.options = options
 		self.shader = shader
 		self.player = player
 		self.texture_manager = texture_manager
-		self.block_types = [None]
+		self.block_types: list[block_type.Block_type] = [None]
 
 		self.shader_daylight_location = shader.find_uniform(b"u_Daylight")
 		self.daylight = 1800
@@ -49,8 +31,8 @@ class World:
 		self.c = 0
 
 		# Compat
-		self.get_chunk_position = get_chunk_position
-		self.get_local_position = get_local_position
+		self.get_chunk_position = chunk.get_chunk_position
+		self.get_local_position = chunk.get_local_position
 
 		# parse block type data file
 
@@ -136,7 +118,7 @@ class World:
 
 		self.save = save.Save(self)
 
-		self.chunks = {}
+		self.chunks: dict[glm.ivec3, chunk.Chunk] = {}
 		self.sorted_chunks = []
 
 		# light update queue
@@ -172,11 +154,11 @@ class World:
 
 
 	
-	def increase_light(self, world_pos, newlight, light_update=True):
-		chunk = self.chunks[get_chunk_position(world_pos)]
-		local_pos = get_local_position(world_pos)
+	def increase_light(self, world_pos: glm.ivec3, newlight: int, light_update: bool = True):
+		c = self.chunks[chunk.get_chunk_position(world_pos)]
+		local_pos = chunk.get_local_position(world_pos)
 
-		chunk.set_block_light(local_pos, newlight)
+		c.set_block_light(local_pos, newlight)
 
 		self.light_increase_queue.append((world_pos, newlight))
 
@@ -196,19 +178,19 @@ class World:
 			for direction in DIRECTIONS:
 				neighbour_pos = pos + direction
 
-				chunk = self.chunks.get(get_chunk_position(neighbour_pos), None)
-				if not chunk: continue
-				local_pos = get_local_position(neighbour_pos)
+				c = self.chunks.get(chunk.get_chunk_position(neighbour_pos), None)
+				if not c: continue
+				local_pos = chunk.get_local_position(neighbour_pos)
 
-				if not self.is_opaque_block(neighbour_pos) and chunk.get_block_light(local_pos) + 2 <= light_level:
-					chunk.set_block_light(local_pos, light_level - 1)
+				if not self.is_opaque_block(neighbour_pos) and c.get_block_light(local_pos) + 2 <= light_level:
+					c.set_block_light(local_pos, light_level - 1)
 
 					self.light_increase_queue.append((neighbour_pos, light_level - 1))
 
 					if light_update:
-						chunk.update_at_position(neighbour_pos)
+						c.update_at_position(neighbour_pos)
 
-	def init_skylight(self, pending_chunk):
+	def init_skylight(self, pending_chunk: chunk.Chunk):
 		""" Initializes the skylight of each chunks
 		To avoid unsufferable lag from propagating from the top of the chunks when
 		most of the heights would be air, it instead runs a simple algorithm
@@ -240,7 +222,7 @@ class World:
 				self.skylight_increase_queue.append((pos, 15))
 
 		self.propagate_skylight_increase(False)
-		
+	
 	def propagate_skylight_increase(self, light_update):
 		"""Similar to the block light algorithm, but 
 		do not lower the light level in the downward direction"""
@@ -252,9 +234,9 @@ class World:
 				if neighbour_pos.y > chunk.CHUNK_HEIGHT:
 					continue
 
-				_chunk = self.chunks.get(get_chunk_position(neighbour_pos), None)
+				_chunk = self.chunks.get(chunk.get_chunk_position(neighbour_pos), None)
 				if not _chunk: continue
-				local_pos = get_local_position(neighbour_pos)
+				local_pos = chunk.get_local_position(neighbour_pos)
 
 				transparency = self.get_transparency(neighbour_pos)
 
@@ -272,11 +254,11 @@ class World:
 						self.skylight_increase_queue.append((neighbour_pos, newlight - 1))
 			
 	
-	def decrease_light(self, world_pos):
-		chunk = self.chunks[get_chunk_position(world_pos)]
-		local_pos = get_local_position(world_pos)
-		old_light = chunk.get_block_light(local_pos)
-		chunk.set_block_light(local_pos, 0)
+	def decrease_light(self, world_pos: glm.ivec3):
+		c = self.chunks[chunk.get_chunk_position(world_pos)]
+		local_pos = chunk.get_local_position(world_pos)
+		old_light = c.get_block_light(local_pos)
+		c.set_block_light(local_pos, 0)
 		self.light_decrease_queue.append((world_pos, old_light))
 		
 		self.propagate_decrease(True)
@@ -296,9 +278,9 @@ class World:
 			for direction in DIRECTIONS:
 				neighbour_pos = pos + direction
 
-				chunk = self.chunks.get(get_chunk_position(neighbour_pos), None)
+				chunk = self.chunks.get(chunk.get_chunk_position(neighbour_pos), None)
 				if not chunk: continue
-				local_pos = get_local_position(neighbour_pos)
+				local_pos = chunk.get_local_position(neighbour_pos)
 
 				if self.get_block_number(neighbour_pos) in self.light_blocks:
 					self.light_increase_queue.append((neighbour_pos, 15))
@@ -317,9 +299,9 @@ class World:
 						self.light_increase_queue.append((neighbour_pos, neighbour_level))
 
 
-	def decrease_skylight(self, world_pos, light_update=True):
-		chunk = self.chunks[get_chunk_position(world_pos)]
-		local_pos = get_local_position(world_pos)
+	def decrease_skylight(self, world_pos: glm.ivec3, light_update=True):
+		chunk = self.chunks[chunk.get_chunk_position(world_pos)]
+		local_pos = chunk.get_local_position(world_pos)
 		old_light = chunk.get_sky_light(local_pos)
 		chunk.set_sky_light(local_pos, 0)
 		self.skylight_decrease_queue.append((world_pos, old_light))
@@ -337,9 +319,9 @@ class World:
 			for direction in DIRECTIONS:
 				neighbour_pos = pos + direction
 
-				chunk = self.chunks.get(get_chunk_position(neighbour_pos), None)
+				chunk = self.chunks.get(chunk.get_chunk_position(neighbour_pos), None)
 				if not chunk: continue
-				local_pos = get_local_position(neighbour_pos)
+				local_pos = chunk.get_local_position(neighbour_pos)
 
 				if self.get_transparency(neighbour_pos):
 					neighbour_level = chunk.get_sky_light(local_pos)
@@ -355,57 +337,58 @@ class World:
 
 	# Getter and setters
 	
-	def get_raw_light(self, position):
-		chunk = self.chunks.get(get_chunk_position(position), None)
-		if not chunk:
+	def get_raw_light(self, position: glm.ivec3) -> int:
+		c = self.chunks.get(chunk.get_chunk_position(position))
+		if not c:
 			return 15 << 4
 		local_position = self.get_local_position(position)
-		return chunk.get_raw_light(local_position)
+		return c.get_raw_light(local_position)
 
 	
-	def get_light(self, position):
-		chunk = self.chunks.get(get_chunk_position(position), None)
-		if not chunk:
+	def get_light(self, position: glm.ivec3) -> int:
+		c = self.chunks.get(chunk.get_chunk_position(position))
+		if not c:
 			return 0
 		local_position = self.get_local_position(position)
-		return chunk.get_block_light(local_position)
+		return c.get_block_light(local_position)
 	
 	
-	def get_skylight(self, position):
-		chunk = self.chunks.get(get_chunk_position(position), None)
-		if not chunk:
+	def get_skylight(self, position: glm.ivec3) -> int:
+		c = self.chunks.get(chunk.get_chunk_position(position))
+		if not c:
 			return 15
 		local_position = self.get_local_position(position)
-		return chunk.get_sky_light(local_position)
+		return c.get_sky_light(local_position)
 
 	
-	def set_light(self, position, light):
-		chunk = self.chunks.get(get_chunk_position(position), None)
-		local_position = get_local_position(position)
-		chunk.set_block_light(local_position, light)
+	def set_light(self, position: glm.ivec3, light: int):
+		c = self.chunks.get(chunk.get_chunk_position(position))
+		local_position = chunk.get_local_position(position)
+		c.set_block_light(local_position, light)
 
 	
-	def set_skylight(self, position, light):
-		chunk = self.chunks.get(get_chunk_position(position), None)
-		local_position = get_local_position(position)
-		chunk.set_sky_light(local_position, light)
+	def set_skylight(self, position: glm.ivec3, light: int):
+		c = self.chunks.get(chunk.get_chunk_position(position))
+		local_position = chunk.get_local_position(position)
+		c.set_sky_light(local_position, light)
 
 	#################################################
 
-	
-	def get_block_number(self, position):
-		chunk_position = get_chunk_position(position)
+	# @lru_cache(maxsize=None)
+	def get_block_number(self, position: glm.ivec3) -> int:
+		chunk_position = chunk.get_chunk_position(position)
 
 		if not chunk_position in self.chunks:
 			return 0
 		
-		lx, ly, lz = get_local_position(position)
+		lx, ly, lz = chunk.get_local_position(position)
 
 		block_number = self.chunks[chunk_position].blocks[lx][ly][lz]
 		return block_number
 
 	
-	def get_transparency(self, position):
+	# @lru_cache(maxsize=None)
+	def get_transparency(self, position: glm.ivec3) -> int:
 		block_type = self.block_types[self.get_block_number(position)]
 
 		if not block_type:
@@ -414,7 +397,7 @@ class World:
 		return block_type.transparent
 
 	
-	def is_opaque_block(self, position):
+	def is_opaque_block(self, position: glm.ivec3) -> bool:
 		# get block type and check if it's opaque or not
 		# air counts as a transparent block, so test for that too
 		
@@ -425,13 +408,12 @@ class World:
 		
 		return not block_type.transparent
 	
-	def create_chunk(self, chunk_position):
+	def create_chunk(self, chunk_position: glm.ivec3):
 		self.chunks[chunk_position] = chunk.Chunk(self, chunk_position)
 		self.init_skylight(self.chunks[chunk_position])
 	
-	def set_block(self, position, number): # set number to 0 (air) to remove block
-		x, y, z = position
-		chunk_position = get_chunk_position(position)
+	def set_block(self, position: glm.ivec3, number: int): # set number to 0 (air) to remove block
+		chunk_position = chunk.get_chunk_position(position)
 
 		if not chunk_position in self.chunks: # if no chunks exist at this position, create a new one
 			if number == 0:
@@ -443,12 +425,12 @@ class World:
 		if self.get_block_number(position) == number: # no point updating mesh if the block is the same
 			return
 		
-		lx, ly, lz = get_local_position(position)
+		lx, ly, lz = chunk.get_local_position(position)
 
 		self.chunks[chunk_position].blocks[lx][ly][lz] = number
 		self.chunks[chunk_position].modified = True
 
-		self.chunks[chunk_position].update_at_position((x, y, z))
+		self.chunks[chunk_position].update_at_position(position)
 
 		if number:
 			if number in self.light_blocks:
@@ -458,16 +440,16 @@ class World:
 				self.decrease_light(position)
 				self.decrease_skylight(position)
 		
-		elif not number:
+		else:
 			self.decrease_light(position)
 			self.decrease_skylight(position)
-
-		cx, cy, cz = chunk_position
 
 		def try_update_chunk_at_position(chunk_position, position):
 			if chunk_position in self.chunks:
 				self.chunks[chunk_position].update_at_position(position)
 		
+		cx, cy, cz = chunk_position
+		x, y, z = position
 		if lx == chunk.CHUNK_WIDTH - 1: try_update_chunk_at_position(glm.ivec3(cx + 1, cy, cz), (x + 1, y, z))
 		if lx == 0: try_update_chunk_at_position(glm.ivec3(cx - 1, cy, cz), (x - 1, y, z))
 
@@ -478,7 +460,7 @@ class World:
 		if lz == 0: try_update_chunk_at_position(glm.ivec3(cx, cy, cz - 1), (x, y, z - 1))
 
 
-	def try_set_block(self, position, number, collider):
+	def try_set_block(self, position: glm.ivec3, number: int, collider: collider.Collider):
 		# if we're trying to remove a block, whatever let it go through
 
 		if not number:
@@ -504,7 +486,7 @@ class World:
 			self.incrementer = -1
 	
 	def can_render_chunk(self, chunk_position):
-		return self.player.check_in_frustum(chunk_position) and math.dist(self.get_chunk_position(self.player.position), chunk_position) <= self.options.RENDER_DISTANCE
+		return self.player.check_in_frustum(chunk_position) and math.dist(self.get_chunk_position(tuple(self.player.position)), chunk_position) <= self.options.RENDER_DISTANCE
 
 	def prepare_rendering(self):
 		self.visible_chunks = [self.chunks[chunk_position]
@@ -512,7 +494,7 @@ class World:
 		self.sort_chunks()
 	
 	def sort_chunks(self):
-		player_chunk_pos = self.get_chunk_position(self.player.position)
+		player_chunk_pos = self.get_chunk_position(tuple(self.player.position))
 		self.visible_chunks.sort(key = cmp_to_key(lambda a, b: math.dist(player_chunk_pos, a.chunk_position) 
 				- math.dist(player_chunk_pos, b.chunk_position)))
 		self.sorted_chunks = tuple(reversed(self.visible_chunks))

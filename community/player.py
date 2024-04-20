@@ -2,7 +2,7 @@ import math
 import entity
 import glm
 import options
-import chunk
+import superchunk as chunk
 
 WALKING_SPEED = 4.317
 SPRINTING_SPEED = 7 # faster than in Minecraft, feels better
@@ -41,16 +41,16 @@ class Player(entity.Entity):
 		# camera variables
 
 		self.eyelevel = self.height - 0.2
-		self.input = [0, 0, 0]
+		self.input = glm.vec3(0, 0, 0)
 
 		self.target_speed = WALKING_SPEED
 		self.speed = self.target_speed
 
 		self.interpolated_position = self.position
-		self.rounded_position = self.position
+		self.rounded_position = glm.ivec3(self.position)
 		self.view_ray = glm.vec3(1.0)
 
-	def update(self, delta_time):
+	def update(self, delta_time: float):
 		# process input
 
 		self.view_ray = glm.vec3(glm.cos(self.rotation[0]) * glm.cos(self.rotation[1]), 
@@ -81,13 +81,13 @@ class Player(entity.Entity):
 
 		super().update(delta_time)
 
-		self.rounded_position = [round(i) for i in self.position]
+		self.rounded_position = glm.round(self.position)
 	
-	def update_interpolation(self, delta_time):
+	def update_interpolation(self, delta_time: float):
 		self.interpolated_position = glm.mix(glm.vec3(self.position), glm.vec3(self.old_position), self.step)
 		self.step -= delta_time
 
-	def update_frustum(self, mat):
+	def update_frustum(self, mat: glm.mat4):
 		mat = glm.transpose(mat)
 		for i in range(4): 
 			Frustum.left[i]      = mat[3][i] + mat[0][i]
@@ -104,14 +104,12 @@ class Player(entity.Entity):
 		Frustum.near = normalize(Frustum.near)
 		Frustum.far = normalize(Frustum.far)
 		
-	def check_in_frustum(self, chunk_pos):
+	def check_in_frustum(self, chunk_pos: glm.ivec3):
 		"""Frustum check of each chunk. If the chunk is not in the view frustum, it is discarded"""
 		planes = (Frustum.left, Frustum.right, Frustum.bottom, Frustum.top, Frustum.near, Frustum.far)
 		result = 2
 		center = glm.vec3(chunk_pos * glm.ivec3(chunk.CHUNK_WIDTH, 0, chunk.CHUNK_LENGTH)
-									+ glm.ivec3(chunk.CHUNK_WIDTH / 2, 
-												chunk.CHUNK_HEIGHT / 2,
-												chunk.CHUNK_LENGTH / 2))
+									+ chunk.CHUNK_SIZE / 2)
 
 
 		for plane in planes:

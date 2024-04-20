@@ -1,16 +1,17 @@
 import math
 import collider
+import glm
 
-FLYING_ACCEL  = (0,   0, 0)
-GRAVITY_ACCEL = (0, -32, 0)
+FLYING_ACCEL  = glm.vec3(0, 0, 0)
+GRAVITY_ACCEL = glm.vec3(0, -32, 0)
 
 # these values all come (losely) from Minecraft, but are multiplied by 20 (since Minecraft runs at 20 TPS)
 
-FRICTION  = ( 20,  20,  20)
+FRICTION  = glm.vec3(20, 20, 20)
 
-DRAG_FLY  = (  5,   5,   5)
-DRAG_JUMP = (1.8,   0, 1.8)
-DRAG_FALL = (1.8, 0.4, 1.8)
+DRAG_FLY  = glm.vec3(5, 5, 5)
+DRAG_JUMP = glm.vec3(1.8, 0, 1.8)
+DRAG_FALL = glm.vec3(1.8, 0.4, 1.8)
 
 class Entity:
 	def __init__(self, world):
@@ -21,16 +22,16 @@ class Entity:
 		self.jump_height = 1.25
 		self.flying = False
 
-		self.position = [0, 80, 0]
-		self.rotation = [-math.tau / 4, 0]
+		self.position = glm.vec3(0, 80, 0)
+		self.rotation = glm.vec2(-math.tau / 4, 0)
 
-		self.old_position = tuple(self.position)
-		self.old_rotation = tuple(self.rotation)
+		self.old_position = glm.vec3(self.position)
+		self.old_rotation = glm.vec2(self.rotation)
 
 		self.step = 1
 
-		self.velocity = [0, 0, 0]
-		self.accel = [0, 0, 0]
+		self.velocity = glm.vec3(0, 0, 0)
+		self.accel = glm.vec3(0, 0, 0)
 
 		# collision variables
 
@@ -52,11 +53,11 @@ class Entity:
 		self.collider.z1 = z - self.width / 2
 		self.collider.z2 = z + self.width / 2
 
-	def teleport(self, pos):
-		self.position = list(pos)
-		self.velocity = [0, 0, 0] # to prevent collisions
+	def teleport(self, pos: glm.vec3):
+		self.position = pos
+		self.velocity *= 0
 
-	def jump(self, height = None):
+	def jump(self, height: float | None = None):
 		# obviously, we can't initiate a jump while in mid-air
 
 		if not self.grounded:
@@ -68,7 +69,7 @@ class Entity:
 		self.velocity[1] = math.sqrt(2 * height * -GRAVITY_ACCEL[1])
 
 	@property
-	def friction(self):
+	def friction(self) -> glm.vec3:
 		if self.flying:
 			return DRAG_FLY
 
@@ -80,14 +81,14 @@ class Entity:
 
 		return DRAG_FALL
 
-	def update(self, delta_time):
+	def update(self, delta_time: float):
 		self.step = 1
-		self.old_position = tuple(self.position)
+		self.old_position = glm.vec3(self.position)
 	
 		# apply input acceleration, and adjust for friction/drag
 
-		self.velocity = [v + a * f * delta_time for v, a, f in zip(self.velocity, self.accel, self.friction)]
-		self.accel = [0, 0, 0]
+		self.velocity = self.velocity + self.accel * self.friction * delta_time
+		self.accel = glm.vec3(0, 0, 0)
 
 		# compute collisions
 
@@ -95,7 +96,7 @@ class Entity:
 		self.grounded = False
 
 		for _ in range(3):
-			adjusted_velocity = [v * delta_time for v in self.velocity]
+			adjusted_velocity = self.velocity * delta_time
 			vx, vy, vz = adjusted_velocity
 
 			# find all the blocks we could potentially be colliding with
@@ -109,7 +110,7 @@ class Entity:
 			steps_y  = int(self.height)
 
 			x, y, z = map(int, self.position)
-			cx, cy, cz = [int(x + v) for x, v in zip(self.position, adjusted_velocity)]
+			cx, cy, cz = map(int, self.position + adjusted_velocity)
 
 			potential_collisions = []
 
@@ -138,31 +139,22 @@ class Entity:
 			entry_time, normal = min(potential_collisions, key = lambda x: x[0])
 			entry_time -= 0.001
 
-			if normal[0]:
-				self.velocity[0] = 0
-				self.position[0] += vx * entry_time
-			
-			if normal[1]:
-				self.velocity[1] = 0
-				self.position[1] += vy * entry_time
-
-			if normal[2]:
-				self.velocity[2] = 0
-				self.position[2] += vz * entry_time
+			self.velocity -= normal * glm.dot(normal, self.velocity)
+			self.position += self.velocity * entry_time * glm.abs(normal)
 
 			if normal[1] == 1:
 				self.grounded = True
 
-		self.position = [x + v * delta_time for x, v in zip(self.position, self.velocity)]
+		self.position += self.velocity * delta_time
 
 		# apply gravity acceleration
 
 		gravity = (GRAVITY_ACCEL, FLYING_ACCEL)[self.flying]
-		self.velocity = [v + a * delta_time for v, a in zip(self.velocity, gravity)]
+		self.velocity += gravity * delta_time
 
 		# apply friction/drag
 
-		self.velocity = [v - min(v * f * delta_time, v, key = abs) for v, f in zip(self.velocity, self.friction)]
+		self.velocity -= glm.vec3([min(v * f * delta_time, v, key=abs) for v, f in zip(self.velocity, self.friction)])
 
 		# make sure we can rely on the entity's collider outside of this function
 

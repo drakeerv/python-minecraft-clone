@@ -5,7 +5,7 @@ import logging
 import pyglet.gl as gl
 
 class TextureManager:
-	def __init__(self, texture_width, texture_height, max_textures):
+	def __init__(self, texture_width: int, texture_height: int, max_textures: int):
 		self.texture_width = texture_width
 		self.texture_height = texture_height
 
@@ -29,7 +29,7 @@ class TextureManager:
 		logging.debug(f"Generating Mipmaps, using mipmap type {options.MIPMAP_TYPE}")
 		gl.glGenerateMipmap(gl.GL_TEXTURE_2D_ARRAY)
 	
-	def add_texture(self, texture):
+	def add_texture(self, texture: str):
 		logging.debug(f"Loading texture textures/{texture}.png")
 
 		if not texture in self.textures:

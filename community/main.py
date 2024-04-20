@@ -1,3 +1,4 @@
+# import superchunk as chunk
 import platform
 import ctypes
 import logging
@@ -71,6 +72,7 @@ Display: {gl.gl_info.get_renderer()}
 {gl.gl_info.get_version()}"""
 
 		logging.info(f"System Info: {self.system_info}")
+
 		# create shader
 
 		logging.info("Compiling Shaders")
@@ -80,14 +82,18 @@ Display: {gl.gl_info.get_renderer()}
 			self.shader = shader.Shader("shaders/colored_lighting/vert.glsl", "shaders/colored_lighting/frag.glsl")
 		self.shader_sampler_location = self.shader.find_uniform(b"u_TextureArraySampler")
 		self.shader.use()
+		
 
 		# create textures
+  
 		logging.info("Creating Texture Array")
 		self.texture_manager = texture_manager.TextureManager(16, 16, 256)
 
 		# create world
 
+		start = time.time()
 		self.world = world.World(self.shader, None, self.texture_manager, self.options)
+		print(f"World created in {time.time() - start} seconds")
 
 		# player stuff
 
@@ -163,11 +169,11 @@ Display: {gl.gl_info.get_renderer()}
 
 		super().on_close()
 
-	def update_f3(self, delta_time):
+	def update_f3(self, delta_time: float):
 		"""Update the F3 debug screen content"""
 
-		player_chunk_pos = world.get_chunk_position(self.player.position)
-		player_local_pos = world.get_local_position(self.player.position)
+		player_chunk_pos = self.world.get_chunk_position(self.player.position)
+		player_local_pos = self.world.get_local_position(self.player.position)
 		chunk_count = len(self.world.chunks)
 		visible_chunk_count = len(self.world.visible_chunks)
 		quad_count = sum(chunk.mesh_quad_count for chunk in self.world.chunks.values())
@@ -274,7 +280,7 @@ def init_logger():
 	with open(log_path, 'x') as file:
 		file.write("[LOGS]\n")
 
-	logging.basicConfig(level=logging.INFO, filename=log_path, 
+	logging.basicConfig(level=logging.DEBUG, filename=log_path, 
 		format="[%(asctime)s] [%(processName)s/%(threadName)s/%(levelname)s] (%(module)s.py/%(funcName)s) %(message)s")
 
 
@@ -287,3 +293,6 @@ def main():
 
 if __name__ == "__main__":
 	main()
+
+# profile command:
+# python -m cProfile -o profile.prof main.py
