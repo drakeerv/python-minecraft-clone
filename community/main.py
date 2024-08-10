@@ -151,11 +151,11 @@ Display: {gl.gl_info.get_renderer()}
 		if len(self.music) > 0:
 			self.media_player.queue(random.choice(self.music))
 			self.media_player.play()
-			self.media_player.standby = False # pyright: ignore
+			self.media_player.standby = False  # pyright: ignore
 		else:
-			self.media_player.standby = True # pyright: ignore
+			self.media_player.standby = True  # pyright: ignore
 
-		self.media_player.next_time = 0 # pyright: ignore
+		self.media_player.next_time = 0  # pyright: ignore
 
 		# GPU command syncs
 		self.fences = deque()
@@ -205,11 +205,11 @@ Buffer Uploading: Direct (glBufferSubData)
 			self.update_f3(delta_time)
 
 		if not self.media_player.source and len(self.music) > 0:
-			if not self.media_player.standby: # pyright: ignore
-				self.media_player.standby = True # pyright: ignore
-				self.media_player.next_time = time.time() + random.randint(240, 360) # pyright: ignore
-			elif time.time() >= self.media_player.next_time: # pyright: ignore
-				self.media_player.standby = False # pyright: ignore
+			if not self.media_player.standby:  # pyright: ignore
+				self.media_player.standby = True  # pyright: ignore
+				self.media_player.next_time = time.time() + random.randint(240, 360)  # pyright: ignore
+			elif time.time() >= self.media_player.next_time:  # pyright: ignore
+				self.media_player.standby = False  # pyright: ignore
 				self.media_player.queue(random.choice(self.music))
 				self.media_player.play()
 

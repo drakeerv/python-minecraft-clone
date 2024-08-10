@@ -122,83 +122,35 @@ class Player(Entity):
 			_out = 0
 			normal = plane.xyz
 			w = plane.w
-			if (
-				glm.dot(
-					normal, center + glm.vec3(CHUNK_WIDTH / 2, CHUNK_HEIGHT / 2, CHUNK_LENGTH / 2)
-				)
-				+ w
-				< 0
-			):
+			if glm.dot(normal, center + glm.vec3(CHUNK_WIDTH / 2, CHUNK_HEIGHT / 2, CHUNK_LENGTH / 2)) + w < 0:
 				_out += 1
 			else:
 				_in += 1
-			if (
-				glm.dot(
-					normal, center + glm.vec3(-CHUNK_WIDTH / 2, CHUNK_HEIGHT / 2, CHUNK_LENGTH / 2)
-				)
-				+ w
-				< 0
-			):
+			if glm.dot(normal, center + glm.vec3(-CHUNK_WIDTH / 2, CHUNK_HEIGHT / 2, CHUNK_LENGTH / 2)) + w < 0:
 				_out += 1
 			else:
 				_in += 1
-			if (
-				glm.dot(
-					normal, center + glm.vec3(CHUNK_WIDTH / 2, CHUNK_HEIGHT / 2, -CHUNK_LENGTH / 2)
-				)
-				+ w
-				< 0
-			):
+			if glm.dot(normal, center + glm.vec3(CHUNK_WIDTH / 2, CHUNK_HEIGHT / 2, -CHUNK_LENGTH / 2)) + w < 0:
 				_out += 1
 			else:
 				_in += 1
-			if (
-				glm.dot(
-					normal, center + glm.vec3(-CHUNK_WIDTH / 2, CHUNK_HEIGHT / 2, -CHUNK_LENGTH / 2)
-				)
-				+ w
-				< 0
-			):
+			if glm.dot(normal, center + glm.vec3(-CHUNK_WIDTH / 2, CHUNK_HEIGHT / 2, -CHUNK_LENGTH / 2)) + w < 0:
 				_out += 1
 			else:
 				_in += 1
-			if (
-				glm.dot(
-					normal, center + glm.vec3(CHUNK_WIDTH / 2, -CHUNK_HEIGHT / 2, CHUNK_LENGTH / 2)
-				)
-				+ w
-				< 0
-			):
+			if glm.dot(normal, center + glm.vec3(CHUNK_WIDTH / 2, -CHUNK_HEIGHT / 2, CHUNK_LENGTH / 2)) + w < 0:
 				_out += 1
 			else:
 				_in += 1
-			if (
-				glm.dot(
-					normal, center + glm.vec3(-CHUNK_WIDTH / 2, -CHUNK_HEIGHT / 2, CHUNK_LENGTH / 2)
-				)
-				+ w
-				< 0
-			):
+			if glm.dot(normal, center + glm.vec3(-CHUNK_WIDTH / 2, -CHUNK_HEIGHT / 2, CHUNK_LENGTH / 2)) + w < 0:
 				_out += 1
 			else:
 				_in += 1
-			if (
-				glm.dot(
-					normal, center + glm.vec3(CHUNK_WIDTH / 2, -CHUNK_HEIGHT / 2, -CHUNK_LENGTH / 2)
-				)
-				+ w
-				< 0
-			):
+			if glm.dot(normal, center + glm.vec3(CHUNK_WIDTH / 2, -CHUNK_HEIGHT / 2, -CHUNK_LENGTH / 2)) + w < 0:
 				_out += 1
 			else:
 				_in += 1
-			if (
-				glm.dot(
-					normal, center + glm.vec3(-CHUNK_WIDTH / 2, -CHUNK_HEIGHT / 2, -CHUNK_LENGTH / 2)
-				)
-				+ w
-				< 0
-			):
+			if glm.dot(normal, center + glm.vec3(-CHUNK_WIDTH / 2, -CHUNK_HEIGHT / 2, -CHUNK_LENGTH / 2)) + w < 0:
 				_out += 1
 			else:
 				_in += 1

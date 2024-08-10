@@ -519,8 +519,9 @@ class World:
 		player_chunk_pos = self.get_chunk_position(self.player.position)
 		self.visible_chunks.sort(
 			key=cmp_to_key(
-				lambda a, b: int(math.dist(player_chunk_pos, a.chunk_position)
-				- math.dist(player_chunk_pos, b.chunk_position))
+				lambda a, b: int(
+					math.dist(player_chunk_pos, a.chunk_position) - math.dist(player_chunk_pos, b.chunk_position)
+				)
 			)
 		)
 		self.sorted_chunks = tuple(reversed(self.visible_chunks))

@@ -4,8 +4,7 @@ import pyglet.gl as gl
 import glm
 
 
-class ShaderError(Exception):
-	...
+class ShaderError(Exception): ...
 
 
 def create_shader(target, source_path):

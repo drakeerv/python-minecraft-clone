@@ -23,16 +23,16 @@ class Entity:
 		self.jump_height = 1.25
 		self.flying = False
 
-		self.position = [0., 80., 0.]
-		self.rotation = [-math.tau / 4, 0.]
+		self.position = [0.0, 80.0, 0.0]
+		self.rotation = [-math.tau / 4, 0.0]
 
 		self.old_position = tuple(self.position)
 		self.old_rotation = tuple(self.rotation)
 
 		self.step = 1
 
-		self.velocity = [0., 0., 0.]
-		self.accel = [0., 0., 0.]
+		self.velocity = [0.0, 0.0, 0.0]
+		self.accel = [0.0, 0.0, 0.0]
 
 		# collision variables
 
@@ -56,7 +56,7 @@ class Entity:
 
 	def teleport(self, pos: list[float]):
 		self.position = list(pos)
-		self.velocity = [0., 0., 0.]  # to prevent collisions
+		self.velocity = [0.0, 0.0, 0.0]  # to prevent collisions
 
 	def jump(self, height=None):
 		# obviously, we can't initiate a jump while in mid-air
@@ -89,7 +89,7 @@ class Entity:
 		# apply input acceleration, and adjust for friction/drag
 
 		self.velocity = [v + a * f * delta_time for v, a, f in zip(self.velocity, self.accel, self.friction)]
-		self.accel = [0., 0., 0.]
+		self.accel = [0.0, 0.0, 0.0]
 
 		# compute collisions
 
