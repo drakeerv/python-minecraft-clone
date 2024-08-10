@@ -4,6 +4,7 @@ import logging
 import random
 import time
 import os
+from collections import deque
 
 import pyglet
 
@@ -13,17 +14,15 @@ pyglet.options["search_local_libs"] = True
 pyglet.options["audio"] = ("openal", "pulse", "directsound", "xaudio2", "silent")
 
 import pyglet.gl as gl
-import shader
-import player
-import texture_manager
 
-import world
+from src.renderer.shader import Shader
+from src.renderer.texture_manager import TextureManager
+from src.world import World
+from src.entity.player import Player
+from src.controllers.joystick import JoystickController
+from src.controllers.keyboard_mouse import KeyboardMouseController
 
-import options
-
-import joystick
-import keyboard_mouse
-from collections import deque
+import src.options as options
 
 
 class InternalConfig:
@@ -80,24 +79,24 @@ Display: {gl.gl_info.get_renderer()}
 
 		logging.info("Compiling Shaders")
 		if not self.options.COLORED_LIGHTING:
-			self.shader = shader.Shader("shaders/alpha_lighting/vert.glsl", "shaders/alpha_lighting/frag.glsl")
+			self.shader = Shader("shaders/alpha_lighting/vert.glsl", "shaders/alpha_lighting/frag.glsl")
 		else:
-			self.shader = shader.Shader("shaders/colored_lighting/vert.glsl", "shaders/colored_lighting/frag.glsl")
+			self.shader = Shader("shaders/colored_lighting/vert.glsl", "shaders/colored_lighting/frag.glsl")
 		self.shader_sampler_location = self.shader.find_uniform(b"u_TextureArraySampler")
 		self.shader.use()
 
 		# create textures
 		logging.info("Creating Texture Array")
-		self.texture_manager = texture_manager.TextureManager(16, 16, 256)
+		self.texture_manager = TextureManager(16, 16, 256)
 
 		# create world
 
-		self.world = world.World(self.shader, None, self.texture_manager, self.options)
+		self.world = World(self.shader, None, self.texture_manager, self.options)
 
 		# player stuff
 
 		logging.info("Setting up player & camera")
-		self.player = player.Player(self.world, self.shader, self.width, self.height)
+		self.player = Player(self.world, self.shader, self.width, self.height)
 		self.world.player = self.player
 
 		# pyglet stuff
@@ -130,10 +129,10 @@ Display: {gl.gl_info.get_renderer()}
 		self.controls = [0, 0, 0]
 
 		# joystick stuff
-		self.joystick_controller = joystick.Joystick_controller(self)
+		self.joystick_controller = JoystickController(self)
 
 		# mouse and keyboard stuff
-		self.keyboard_mouse = keyboard_mouse.Keyboard_Mouse(self)
+		self.keyboard_mouse = KeyboardMouseController(self)
 
 		# music stuff
 		logging.info("Loading audio")
@@ -152,11 +151,11 @@ Display: {gl.gl_info.get_renderer()}
 		if len(self.music) > 0:
 			self.media_player.queue(random.choice(self.music))
 			self.media_player.play()
-			self.media_player.standby = False
+			self.media_player.standby = False # pyright: ignore
 		else:
-			self.media_player.standby = True
+			self.media_player.standby = True # pyright: ignore
 
-		self.media_player.next_time = 0
+		self.media_player.next_time = 0 # pyright: ignore
 
 		# GPU command syncs
 		self.fences = deque()
@@ -175,8 +174,8 @@ Display: {gl.gl_info.get_renderer()}
 	def update_f3(self, delta_time):
 		"""Update the F3 debug screen content"""
 
-		player_chunk_pos = world.get_chunk_position(self.player.position)
-		player_local_pos = world.get_local_position(self.player.position)
+		player_chunk_pos = self.world.get_chunk_position(self.player.position)
+		player_local_pos = self.world.get_local_position(self.player.position)
 		chunk_count = len(self.world.chunks)
 		visible_chunk_count = len(self.world.visible_chunks)
 		quad_count = sum(chunk.mesh_quad_count for chunk in self.world.chunks.values())
@@ -206,11 +205,11 @@ Buffer Uploading: Direct (glBufferSubData)
 			self.update_f3(delta_time)
 
 		if not self.media_player.source and len(self.music) > 0:
-			if not self.media_player.standby:
-				self.media_player.standby = True
-				self.media_player.next_time = time.time() + random.randint(240, 360)
-			elif time.time() >= self.media_player.next_time:
-				self.media_player.standby = False
+			if not self.media_player.standby: # pyright: ignore
+				self.media_player.standby = True # pyright: ignore
+				self.media_player.next_time = time.time() + random.randint(240, 360) # pyright: ignore
+			elif time.time() >= self.media_player.next_time: # pyright: ignore
+				self.media_player.standby = False # pyright: ignore
 				self.media_player.queue(random.choice(self.music))
 				self.media_player.play()
 

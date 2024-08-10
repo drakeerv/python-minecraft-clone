@@ -2,19 +2,20 @@ import ctypes
 import math
 import logging
 import glm
-import options
 
 from functools import cmp_to_key
 from collections import deque
 
 import pyglet.gl as gl
 
-import block_type
-import models
-import save
-from util import DIRECTIONS
+from src.renderer.block_type import BlockType
+from src.save import Save
+from src.util import DIRECTIONS
+from src.entity.player import Player
+from src.chunk.chunk import CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_LENGTH, Chunk
 
-from chunk import CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_LENGTH, Chunk
+import src.options as options
+import models
 
 
 def get_chunk_position(position):
@@ -30,12 +31,12 @@ def get_local_position(position):
 
 
 class World:
-	def __init__(self, shader, player, texture_manager, options):
+	def __init__(self, shader, player: Player | None, texture_manager, options):
 		self.options = options
 		self.shader = shader
 		self.player = player
 		self.texture_manager = texture_manager
-		self.block_types = [None]
+		self.block_types: list[BlockType | None] = [None]
 
 		self.shader_daylight_location = shader.find_uniform(b"u_Daylight")
 		self.daylight = 1800
@@ -49,9 +50,8 @@ class World:
 
 		# parse block type data file
 
-		blocks_data_file = open("data/blocks.mcpy")
-		blocks_data = blocks_data_file.readlines()
-		blocks_data_file.close()
+		with open("data/blocks.mcpy") as f:
+			blocks_data = f.readlines()
 
 		logging.info("Loading block models")
 		for block in blocks_data:
@@ -75,10 +75,12 @@ class World:
 
 				if prop[0] == "sameas":
 					sameas_number = int(prop[1])
+					sameas = self.block_types[sameas_number]
 
-					name = self.block_types[sameas_number].name
-					texture = self.block_types[sameas_number].block_face_textures
-					model = self.block_types[sameas_number].model
+					if sameas is not None:
+						name = sameas.name
+						texture = sameas.block_face_textures
+						model = sameas.model
 
 				elif prop[0] == "name":
 					name = eval(prop[1])
@@ -92,13 +94,13 @@ class World:
 
 			# add block type
 
-			_block_type = block_type.Block_type(self.texture_manager, name, texture, model)
+			block_type = BlockType(self.texture_manager, name, texture, model)
 
 			if number < len(self.block_types):
-				self.block_types[number] = _block_type
+				self.block_types[number] = block_type
 
 			else:
-				self.block_types.append(_block_type)
+				self.block_types.append(block_type)
 
 		self.light_blocks = [10, 11, 50, 51, 62, 75]
 
@@ -129,7 +131,7 @@ class World:
 
 		# load the world
 
-		self.save = save.Save(self)
+		self.save = Save(self)
 
 		self.chunks = {}
 		self.sorted_chunks = []
@@ -153,7 +155,7 @@ class World:
 			world_chunk.update_subchunk_meshes()
 
 		del indices
-		self.visible_chunks = []
+		self.visible_chunks: list[Chunk] = []
 
 		# Debug variables
 
@@ -203,7 +205,7 @@ class World:
 
 	def init_skylight(self, pending_chunk):
 		"""Initializes the skylight of each chunks
-		To avoid unsufferable lag from propagating from the top of the chunks when
+		To avoid insufferable lag from propagating from the top of the chunks when
 		most of the heights would be air, it instead runs a simple algorithm
 		to check where the highest point of the chunk is and propagates skylight from
 		this height"""
@@ -214,6 +216,8 @@ class World:
 		height = 0
 		for lx in range(CHUNK_WIDTH):
 			for lz in range(CHUNK_LENGTH):
+				ly = 0
+
 				for ly in range(CHUNK_HEIGHT - 1, -1, -1):
 					if pending_chunk.blocks[lx][ly][lz]:
 						break
@@ -223,6 +227,8 @@ class World:
 		# Initialize skylight to 15 until that point and then queue a skylight propagation increase
 		for lx in range(CHUNK_WIDTH):
 			for lz in range(CHUNK_LENGTH):
+				ly = 0
+
 				for ly in range(CHUNK_HEIGHT - 1, height, -1):
 					pending_chunk.set_sky_light(glm.ivec3(lx, ly, lz), 15)
 
@@ -492,6 +498,9 @@ class World:
 			self.incrementer = -1
 
 	def can_render_chunk(self, chunk_position):
+		if self.player is None:
+			return False
+
 		return (
 			self.player.check_in_frustum(chunk_position)
 			and math.dist(self.get_chunk_position(self.player.position), chunk_position) <= self.options.RENDER_DISTANCE
@@ -504,11 +513,14 @@ class World:
 		self.sort_chunks()
 
 	def sort_chunks(self):
+		if self.player is None:
+			return
+
 		player_chunk_pos = self.get_chunk_position(self.player.position)
 		self.visible_chunks.sort(
 			key=cmp_to_key(
-				lambda a, b: math.dist(player_chunk_pos, a.chunk_position)
-				- math.dist(player_chunk_pos, b.chunk_position)
+				lambda a, b: int(math.dist(player_chunk_pos, a.chunk_position)
+				- math.dist(player_chunk_pos, b.chunk_position))
 			)
 		)
 		self.sorted_chunks = tuple(reversed(self.visible_chunks))

@@ -1,10 +1,11 @@
-import pyglet.window
-
-import controller
 import math
 
+import pyglet.window.mouse
 
-class Keyboard_Mouse(controller.Controller):
+from src.controllers.controller import Controller
+
+
+class KeyboardMouseController(Controller):
 	def __init__(self, game):
 		super().__init__(game)
 

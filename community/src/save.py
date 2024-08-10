@@ -1,9 +1,9 @@
 import nbtlib as nbt
 import base36
+import glm
 import logging
 
-import chunk
-import glm
+from src.chunk.chunk import Chunk, CHUNK_HEIGHT, CHUNK_LENGTH, CHUNK_WIDTH
 
 
 class Save:
@@ -34,13 +34,13 @@ class Save:
 
 		# create chunk and fill it with the blocks from our chunk file
 
-		self.world.chunks[glm.ivec3(chunk_position)] = chunk.Chunk(self.world, glm.ivec3(chunk_position))
+		self.world.chunks[glm.ivec3(chunk_position)] = Chunk(self.world, glm.ivec3(chunk_position))
 
-		for x in range(chunk.CHUNK_WIDTH):
-			for y in range(chunk.CHUNK_HEIGHT):
-				for z in range(chunk.CHUNK_LENGTH):
-					self.world.chunks[glm.ivec3(chunk_position)].blocks[x][y][z] = chunk_blocks[
-						x * chunk.CHUNK_LENGTH * chunk.CHUNK_HEIGHT + z * chunk.CHUNK_HEIGHT + y
+		for x in range(CHUNK_WIDTH):
+			for y in range(CHUNK_HEIGHT):
+				for z in range(CHUNK_LENGTH):
+					self.world.chunks[chunk_position].blocks[x][y][z] = chunk_blocks[
+						x * CHUNK_LENGTH * CHUNK_HEIGHT + z * CHUNK_HEIGHT + y
 					]
 
 	def save_chunk(self, chunk_position):
@@ -63,14 +63,13 @@ class Save:
 
 		# fill the chunk file with the blocks from our chunk
 
-		chunk_blocks = nbt.ByteArray([0] * (chunk.CHUNK_WIDTH * chunk.CHUNK_HEIGHT * chunk.CHUNK_LENGTH))
+		chunk_blocks = nbt.ByteArray([0] * (CHUNK_WIDTH * CHUNK_HEIGHT * CHUNK_LENGTH))
 
-		for x in range(chunk.CHUNK_WIDTH):
-			for y in range(chunk.CHUNK_HEIGHT):
-				for z in range(chunk.CHUNK_LENGTH):
-					chunk_blocks[x * chunk.CHUNK_LENGTH * chunk.CHUNK_HEIGHT + z * chunk.CHUNK_HEIGHT + y] = (
-						self.world.chunks[chunk_position].blocks[x][y][z]
-					)
+		for x in range(CHUNK_WIDTH):
+			for y in range(CHUNK_HEIGHT):
+				for z in range(CHUNK_LENGTH):
+					block = self.world.chunks[chunk_position].blocks[x][y][z]
+					chunk_blocks[x * CHUNK_LENGTH * CHUNK_HEIGHT + z * CHUNK_HEIGHT + y] = block
 
 		# save the chunk file
 
@@ -93,14 +92,14 @@ class Save:
 		#  		self.load_chunk((x, 0, y))
 
 		for chunk_position, unlit_chunk in self.world.chunks.items():
-			for x in range(chunk.CHUNK_WIDTH):
-				for y in range(chunk.CHUNK_HEIGHT):
-					for z in range(chunk.CHUNK_LENGTH):
+			for x in range(CHUNK_WIDTH):
+				for y in range(CHUNK_HEIGHT):
+					for z in range(CHUNK_LENGTH):
 						if unlit_chunk.blocks[x][y][z] in self.world.light_blocks:
 							world_pos = glm.ivec3(
-								chunk_position[0] * chunk.CHUNK_WIDTH + x,
-								chunk_position[1] * chunk.CHUNK_HEIGHT + y,
-								chunk_position[2] * chunk.CHUNK_LENGTH + z,
+								chunk_position[0] * CHUNK_WIDTH + x,
+								chunk_position[1] * CHUNK_HEIGHT + y,
+								chunk_position[2] * CHUNK_LENGTH + z,
 							)
 							self.world.increase_light(world_pos, 15, False)
 

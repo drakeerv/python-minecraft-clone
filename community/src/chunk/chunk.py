@@ -3,9 +3,8 @@ from collections import deque
 
 import pyglet.gl as gl
 
-from subchunk import SUBCHUNK_WIDTH, SUBCHUNK_HEIGHT, SUBCHUNK_LENGTH, Subchunk
-
-import options
+from src.chunk.subchunk import SUBCHUNK_WIDTH, SUBCHUNK_HEIGHT, SUBCHUNK_LENGTH, Subchunk
+import src.options as options
 
 CHUNK_WIDTH = 16
 CHUNK_HEIGHT = 128

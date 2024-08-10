@@ -1,9 +1,9 @@
 import random
-import player
-import chunk
-import hit
-
 from enum import IntEnum
+
+from src.chunk.chunk import CHUNK_WIDTH, CHUNK_LENGTH, CHUNK_HEIGHT
+from src.physics.hit import HIT_RANGE, HitRay
+from src.entity.player import SPRINTING_SPEED, WALKING_SPEED
 
 
 class Controller:
@@ -49,9 +49,9 @@ class Controller:
 		x, y, z = self.game.player.position
 		y += self.game.player.eyelevel
 
-		hit_ray = hit.Hit_ray(self.game.world, self.game.player.rotation, (x, y, z))
+		hit_ray = HitRay(self.game.world, self.game.player.rotation, (x, y, z))
 
-		while hit_ray.distance < hit.HIT_RANGE:
+		while hit_ray.distance < HIT_RANGE:
 			if hit_ray.step(hit_callback):
 				break
 
@@ -80,13 +80,13 @@ class Controller:
 			for pos in self.game.world.chunks:
 				x, y, z = pos
 
-				max_y = max(max_y, (y + 1) * chunk.CHUNK_HEIGHT)
+				max_y = max(max_y, (y + 1) * CHUNK_HEIGHT)
 
-				max_x = max(max_x, (x + 1) * chunk.CHUNK_WIDTH)
-				min_x = min(min_x, x * chunk.CHUNK_WIDTH)
+				max_x = max(max_x, (x + 1) * CHUNK_WIDTH)
+				min_x = min(min_x, x * CHUNK_WIDTH)
 
-				max_z = max(max_z, (z + 1) * chunk.CHUNK_LENGTH)
-				min_z = min(min_z, z * chunk.CHUNK_LENGTH)
+				max_z = max(max_z, (z + 1) * CHUNK_LENGTH)
+				min_z = min(min_z, z * CHUNK_LENGTH)
 
 			# get random X & Z coordinates to teleport the player to
 
@@ -95,7 +95,7 @@ class Controller:
 
 			# find height at which to teleport to, by finding the first non-air block from the top of the world
 
-			for y in range(chunk.CHUNK_HEIGHT - 1, -1, -1):
+			for y in range(CHUNK_HEIGHT - 1, -1, -1):
 				if not self.game.world.get_block_number((x, y, z)):
 					continue
 
@@ -121,15 +121,11 @@ class Controller:
 
 	def start_modifier(self, mode):
 		if mode == self.ModifierMode.SPRINT:
-			self.game.player.target_speed = player.SPRINTING_SPEED
+			self.game.player.target_speed = SPRINTING_SPEED
 
 	def end_modifier(self, mode):
 		if mode == self.ModifierMode.SPRINT:
-			self.game.player.target_speed = player.WALKING_SPEED
+			self.game.player.target_speed = WALKING_SPEED
 
 	def apply_deadzone(self, value):
-		if abs(value[0]) < self.joystick_deadzone:
-			value[0] = 0
-		if abs(value[1]) < self.joystick_deadzone:
-			value[1] = 0
 		return value

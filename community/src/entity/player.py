@@ -1,8 +1,9 @@
 import math
-import entity
 import glm
-import options
-import chunk
+
+import src.options as options
+from src.entity.entity import Entity
+from src.chunk.chunk import CHUNK_HEIGHT, CHUNK_LENGTH, CHUNK_WIDTH
 
 WALKING_SPEED = 4.317
 SPRINTING_SPEED = 7  # faster than in Minecraft, feels better
@@ -21,7 +22,7 @@ def normalize(plane):
 	return plane / glm.length(plane.xyz)
 
 
-class Player(entity.Entity):
+class Player(Entity):
 	def __init__(self, world, shader, width, height):
 		super().__init__(world)
 
@@ -87,7 +88,7 @@ class Player(entity.Entity):
 		self.rounded_position = [round(i) for i in self.position]
 
 	def update_interpolation(self, delta_time):
-		self.interpolated_position = glm.mix(glm.vec3(self.position), glm.vec3(self.old_position), self.step)
+		self.interpolated_position = glm.mix(glm.vec3(*self.position), glm.vec3(*self.old_position), self.step)
 		self.step -= delta_time
 
 	def update_frustum(self, mat):
@@ -108,12 +109,12 @@ class Player(entity.Entity):
 		Frustum.far = normalize(Frustum.far)
 
 	def check_in_frustum(self, chunk_pos):
-		"""Frustum check of each chunk. If the chunk is not in the view frustum, it is discarded"""
+		"""Frustum check of each  If the chunk is not in the view frustum, it is discarded"""
 		planes = (Frustum.left, Frustum.right, Frustum.bottom, Frustum.top, Frustum.near, Frustum.far)
 		result = 2
 		center = glm.vec3(
-			chunk_pos * glm.ivec3(chunk.CHUNK_WIDTH, 0, chunk.CHUNK_LENGTH)
-			+ glm.ivec3(chunk.CHUNK_WIDTH / 2, chunk.CHUNK_HEIGHT / 2, chunk.CHUNK_LENGTH / 2)
+			chunk_pos * glm.ivec3(CHUNK_WIDTH, 0, CHUNK_LENGTH)
+			+ glm.ivec3(CHUNK_WIDTH / 2, CHUNK_HEIGHT / 2, CHUNK_LENGTH / 2)
 		)
 
 		for plane in planes:
@@ -123,7 +124,7 @@ class Player(entity.Entity):
 			w = plane.w
 			if (
 				glm.dot(
-					normal, center + glm.vec3(chunk.CHUNK_WIDTH / 2, chunk.CHUNK_HEIGHT / 2, chunk.CHUNK_LENGTH / 2)
+					normal, center + glm.vec3(CHUNK_WIDTH / 2, CHUNK_HEIGHT / 2, CHUNK_LENGTH / 2)
 				)
 				+ w
 				< 0
@@ -133,7 +134,7 @@ class Player(entity.Entity):
 				_in += 1
 			if (
 				glm.dot(
-					normal, center + glm.vec3(-chunk.CHUNK_WIDTH / 2, chunk.CHUNK_HEIGHT / 2, chunk.CHUNK_LENGTH / 2)
+					normal, center + glm.vec3(-CHUNK_WIDTH / 2, CHUNK_HEIGHT / 2, CHUNK_LENGTH / 2)
 				)
 				+ w
 				< 0
@@ -143,7 +144,7 @@ class Player(entity.Entity):
 				_in += 1
 			if (
 				glm.dot(
-					normal, center + glm.vec3(chunk.CHUNK_WIDTH / 2, chunk.CHUNK_HEIGHT / 2, -chunk.CHUNK_LENGTH / 2)
+					normal, center + glm.vec3(CHUNK_WIDTH / 2, CHUNK_HEIGHT / 2, -CHUNK_LENGTH / 2)
 				)
 				+ w
 				< 0
@@ -153,7 +154,7 @@ class Player(entity.Entity):
 				_in += 1
 			if (
 				glm.dot(
-					normal, center + glm.vec3(-chunk.CHUNK_WIDTH / 2, chunk.CHUNK_HEIGHT / 2, -chunk.CHUNK_LENGTH / 2)
+					normal, center + glm.vec3(-CHUNK_WIDTH / 2, CHUNK_HEIGHT / 2, -CHUNK_LENGTH / 2)
 				)
 				+ w
 				< 0
@@ -163,7 +164,7 @@ class Player(entity.Entity):
 				_in += 1
 			if (
 				glm.dot(
-					normal, center + glm.vec3(chunk.CHUNK_WIDTH / 2, -chunk.CHUNK_HEIGHT / 2, chunk.CHUNK_LENGTH / 2)
+					normal, center + glm.vec3(CHUNK_WIDTH / 2, -CHUNK_HEIGHT / 2, CHUNK_LENGTH / 2)
 				)
 				+ w
 				< 0
@@ -173,7 +174,7 @@ class Player(entity.Entity):
 				_in += 1
 			if (
 				glm.dot(
-					normal, center + glm.vec3(-chunk.CHUNK_WIDTH / 2, -chunk.CHUNK_HEIGHT / 2, chunk.CHUNK_LENGTH / 2)
+					normal, center + glm.vec3(-CHUNK_WIDTH / 2, -CHUNK_HEIGHT / 2, CHUNK_LENGTH / 2)
 				)
 				+ w
 				< 0
@@ -183,7 +184,7 @@ class Player(entity.Entity):
 				_in += 1
 			if (
 				glm.dot(
-					normal, center + glm.vec3(chunk.CHUNK_WIDTH / 2, -chunk.CHUNK_HEIGHT / 2, -chunk.CHUNK_LENGTH / 2)
+					normal, center + glm.vec3(CHUNK_WIDTH / 2, -CHUNK_HEIGHT / 2, -CHUNK_LENGTH / 2)
 				)
 				+ w
 				< 0
@@ -193,7 +194,7 @@ class Player(entity.Entity):
 				_in += 1
 			if (
 				glm.dot(
-					normal, center + glm.vec3(-chunk.CHUNK_WIDTH / 2, -chunk.CHUNK_HEIGHT / 2, -chunk.CHUNK_LENGTH / 2)
+					normal, center + glm.vec3(-CHUNK_WIDTH / 2, -CHUNK_HEIGHT / 2, -CHUNK_LENGTH / 2)
 				)
 				+ w
 				< 0

@@ -1,6 +1,7 @@
-from util import *
 import glm
 from functools import lru_cache as cache
+
+from src.util import UP, DOWN, NORTH, SOUTH, EAST, WEST, DIRECTIONS
 
 SUBCHUNK_WIDTH = 4
 SUBCHUNK_HEIGHT = 4
@@ -254,7 +255,7 @@ class Subchunk:
 					if block_number:
 						block_type = self.world.block_types[block_number]
 
-						x, y, z = pos = glm.ivec3(
+						pos = glm.ivec3(
 							self.position[0] + local_x, self.position[1] + local_y, self.position[2] + local_z
 						)
 

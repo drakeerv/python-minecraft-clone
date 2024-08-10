@@ -1,8 +1,9 @@
-import options
 import pyglet
 import logging
 
 import pyglet.gl as gl
+
+import src.options as options
 
 
 class TextureManager:

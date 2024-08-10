@@ -3,7 +3,7 @@ import math
 HIT_RANGE = 3
 
 
-class Hit_ray:
+class HitRay:
 	def __init__(self, world, rotation, starting_position):
 		self.world = world
 

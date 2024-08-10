@@ -1,10 +1,11 @@
 import math
-import collider
+
+from src.physics.collider import Collider
 
 FLYING_ACCEL = (0, 0, 0)
 GRAVITY_ACCEL = (0, -32, 0)
 
-# these values all come (losely) from Minecraft, but are multiplied by 20 (since Minecraft runs at 20 TPS)
+# these values all come (loosely) from Minecraft, but are multiplied by 20 (since Minecraft runs at 20 TPS)
 
 FRICTION = (20, 20, 20)
 
@@ -22,23 +23,23 @@ class Entity:
 		self.jump_height = 1.25
 		self.flying = False
 
-		self.position = [0, 80, 0]
-		self.rotation = [-math.tau / 4, 0]
+		self.position = [0., 80., 0.]
+		self.rotation = [-math.tau / 4, 0.]
 
 		self.old_position = tuple(self.position)
 		self.old_rotation = tuple(self.rotation)
 
 		self.step = 1
 
-		self.velocity = [0, 0, 0]
-		self.accel = [0, 0, 0]
+		self.velocity = [0., 0., 0.]
+		self.accel = [0., 0., 0.]
 
 		# collision variables
 
 		self.width = 0.6
 		self.height = 1.8
 
-		self.collider = collider.Collider()
+		self.collider = Collider()
 		self.grounded = False
 
 	def update_collider(self):
@@ -53,9 +54,9 @@ class Entity:
 		self.collider.z1 = z - self.width / 2
 		self.collider.z2 = z + self.width / 2
 
-	def teleport(self, pos):
+	def teleport(self, pos: list[float]):
 		self.position = list(pos)
-		self.velocity = [0, 0, 0]  # to prevent collisions
+		self.velocity = [0., 0., 0.]  # to prevent collisions
 
 	def jump(self, height=None):
 		# obviously, we can't initiate a jump while in mid-air
@@ -81,14 +82,14 @@ class Entity:
 
 		return DRAG_FALL
 
-	def update(self, delta_time):
+	def update(self, delta_time: float):
 		self.step = 1
 		self.old_position = tuple(self.position)
 
 		# apply input acceleration, and adjust for friction/drag
 
 		self.velocity = [v + a * f * delta_time for v, a, f in zip(self.velocity, self.accel, self.friction)]
-		self.accel = [0, 0, 0]
+		self.accel = [0., 0., 0.]
 
 		# compute collisions
 
