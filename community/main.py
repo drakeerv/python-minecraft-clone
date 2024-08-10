@@ -8,6 +8,8 @@ from collections import deque
 
 import pyglet
 
+from src.music import MusicPlayer
+
 pyglet.options["shadow_window"] = False
 pyglet.options["debug_gl"] = False
 pyglet.options["search_local_libs"] = True
@@ -145,17 +147,14 @@ Display: {gl.gl_info.get_renderer()}
 		except FileNotFoundError:
 			self.music = []
 
-		self.media_player = pyglet.media.Player()
+		self.media_player = MusicPlayer()
 		self.media_player.volume = 0.5
 
 		if len(self.music) > 0:
 			self.media_player.queue(random.choice(self.music))
 			self.media_player.play()
-			self.media_player.standby = False  # pyright: ignore
 		else:
-			self.media_player.standby = True  # pyright: ignore
-
-		self.media_player.next_time = 0  # pyright: ignore
+			self.media_player.standby = True
 
 		# GPU command syncs
 		self.fences = deque()
@@ -205,11 +204,11 @@ Buffer Uploading: Direct (glBufferSubData)
 			self.update_f3(delta_time)
 
 		if not self.media_player.source and len(self.music) > 0:
-			if not self.media_player.standby:  # pyright: ignore
-				self.media_player.standby = True  # pyright: ignore
-				self.media_player.next_time = time.time() + random.randint(240, 360)  # pyright: ignore
-			elif time.time() >= self.media_player.next_time:  # pyright: ignore
-				self.media_player.standby = False  # pyright: ignore
+			if not self.media_player.standby:
+				self.media_player.standby = True
+				self.media_player.next_time = round(time.time()) + random.randint(240, 360)
+			elif time.time() >= self.media_player.next_time:
+				self.media_player.standby = False
 				self.media_player.queue(random.choice(self.music))
 				self.media_player.play()
 
