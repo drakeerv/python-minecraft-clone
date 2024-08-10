@@ -18,7 +18,7 @@ class Block_type:
 		self.shading_values = model.shading_values
 
 		def set_block_face(face, texture):
-			# make sure we don't add inexistent faces
+			# make sure we don't add nonexistent faces
 			if face > len(self.tex_coords) - 1:
 				return
 
